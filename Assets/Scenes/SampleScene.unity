@@ -535,6 +535,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 29db24d0824c0834693bc2f1d1245358, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DroneController
+  pythonPath: venv/Scripts/python.exe
+  scriptPath: drone_server.py
   moveSpeed: 5
   rotateSpeed: 100
 --- !u!1 &1189807556
