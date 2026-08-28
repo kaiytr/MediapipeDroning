@@ -7,14 +7,21 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using Debug = UnityEngine.Debug;
 
+public enum ControlMode
+{
+    HandGesture,
+    Keyboard
+}
+
 public class DroneController : MonoBehaviour
 {
     [Header("Control Settings")]
-    public ControlMode currentMode;
+    public ControlMode currentMode = ControlMode.HandGesture;
 
     [Header("Python Server Settings")]
     [Tooltip("PyInstaller로 생성한 단일 파이썬 실행 파일 이름")]
     public string serverExecutableName = "drone_server.exe";
+    public int serverPort = 5001;
 
     [Header("Drone Movement Settings")]
     public float moveSpeed = 5f;
@@ -29,7 +36,8 @@ public class DroneController : MonoBehaviour
 
     void Start()
     {
-        currentMode = GameManager.SelectedMode;
+        string savedMode = PlayerPrefs.GetString("ControlType", "Hand");
+        currentMode = (savedMode == "Hand") ? ControlMode.HandGesture : ControlMode.Keyboard;
 
         Rigidbody rb = GetComponent<Rigidbody>();
         if (rb != null)
@@ -40,26 +48,47 @@ public class DroneController : MonoBehaviour
         if (currentMode == ControlMode.HandGesture)
         {
             StartPythonServer();
-            // 웹캠 및 MediaPipe 초기화 시간을 고려하여 3초 후 첫 접속 시도
-            Invoke(nameof(ConnectToServer), 3.0f);
+            Invoke(nameof(ConnectToServer), 2.0f);
         }
     }
 
     void StartPythonServer()
     {
+        Process[] existingExe = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(serverExecutableName));
+        if (existingExe.Length > 0)
+        {
+            Debug.Log("파이썬 서버가 이미 백그라운드에서 실행 중입니다.");
+            return;
+        }
+
         try
         {
-            string rootPath = Application.isEditor 
-                ? Path.GetFullPath(Path.Combine(Application.dataPath, "..")) 
-                : AppDomain.CurrentDomain.BaseDirectory;
+            ProcessStartInfo startInfo = new ProcessStartInfo();
 
-            string fullExePath = Path.Combine(rootPath, "dist", serverExecutableName);
-            string workingDir = Path.Combine(rootPath, "dist");
+#if UNITY_EDITOR
+            string rootPath = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+            string venvPython = Path.Combine(rootPath, "venv", "Scripts", "python.exe");
+            string scriptPath = Path.Combine(rootPath, "drone_server.py");
+
+            string pythonExec = File.Exists(venvPython) ? venvPython : "python";
+
+            startInfo.FileName = pythonExec;
+            startInfo.Arguments = $"\"{scriptPath}\"";
+            startInfo.WorkingDirectory = rootPath;
+            
+            // 터미널 창(검은 창) 숨기기 세팅
+            startInfo.UseShellExecute = false;
+            startInfo.CreateNoWindow = true;
+            startInfo.WindowStyle = ProcessWindowStyle.Hidden;
+#else
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string fullExePath = Path.Combine(baseDir, "dist", serverExecutableName);
+            string workingDir = Path.Combine(baseDir, "dist");
 
             if (!File.Exists(fullExePath))
             {
-                fullExePath = Path.Combine(rootPath, serverExecutableName);
-                workingDir = rootPath;
+                fullExePath = Path.Combine(baseDir, serverExecutableName);
+                workingDir = baseDir;
             }
 
             if (!File.Exists(fullExePath))
@@ -69,17 +98,15 @@ public class DroneController : MonoBehaviour
                 return;
             }
 
-            ProcessStartInfo startInfo = new ProcessStartInfo
-            {
-                FileName = fullExePath,
-                WorkingDirectory = workingDir,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                WindowStyle = ProcessWindowStyle.Hidden
-            };
+            startInfo.FileName = fullExePath;
+            startInfo.WorkingDirectory = workingDir;
+            startInfo.UseShellExecute = false;
+            startInfo.CreateNoWindow = true;
+            startInfo.WindowStyle = ProcessWindowStyle.Hidden;
+#endif
 
             pythonProcess = Process.Start(startInfo);
-            Debug.Log("파이썬 서버(EXE) 백그라운드 자동 실행 성공: " + fullExePath);
+            Debug.Log("파이썬 서버 자동 실행 성공 (터미널 숨김)");
         }
         catch (Exception e)
         {
@@ -96,8 +123,7 @@ public class DroneController : MonoBehaviour
         try
         {
             client = new TcpClient();
-            // 타임아웃 1초 설정 후 접속 시도
-            var result = client.BeginConnect("127.0.0.1", 5001, null, null);
+            var result = client.BeginConnect("127.0.0.1", serverPort, null, null);
             bool success = result.AsyncWaitHandle.WaitOne(TimeSpan.FromSeconds(1));
 
             if (!success)
@@ -114,7 +140,7 @@ public class DroneController : MonoBehaviour
         {
             Debug.LogWarning("서버 연결 대기 중... 재시도합니다.");
             if (client != null) { client.Close(); client = null; }
-            Invoke(nameof(ConnectToServer), 1.5f);
+            Invoke(nameof(ConnectToServer), 1.0f);
         }
     }
 
