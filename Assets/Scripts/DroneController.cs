@@ -29,7 +29,6 @@ public class DroneController : MonoBehaviour
 
     void Start()
     {
-        // GameManager에서 설정된 모드를 가져옴
         currentMode = GameManager.SelectedMode;
 
         Rigidbody rb = GetComponent<Rigidbody>();
@@ -38,7 +37,6 @@ public class DroneController : MonoBehaviour
             rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
         }
 
-        // 손 제스처 모드일 경우에만 파이썬 서버 자동 실행
         if (currentMode == ControlMode.HandGesture)
         {
             StartPythonServer();
@@ -71,12 +69,13 @@ public class DroneController : MonoBehaviour
                 FileName = fullPythonPath,
                 Arguments = $"\"{fullScriptPath}\"",
                 WorkingDirectory = projectRoot,
-                UseShellExecute = true,
-                CreateNoWindow = false
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden
             };
 
             pythonProcess = Process.Start(startInfo);
-            Debug.Log("파이썬 서버 자동 실행 시작");
+            Debug.Log("파이썬 백그라운드 서버 자동 실행 시작");
         }
         catch (Exception e)
         {
@@ -114,7 +113,6 @@ public class DroneController : MonoBehaviour
             ProcessSocketInput();
         }
 
-        // ESC 키 입력 시 Start 씬(메인 메뉴)으로 돌아가기
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             ReturnToStartScene();
@@ -123,21 +121,18 @@ public class DroneController : MonoBehaviour
 
     private void ProcessKeyboardInput()
     {
-        // 왼손 매핑 (WASD)
         if (Input.GetKey(KeyCode.W)) leftCommand = "UP";
         else if (Input.GetKey(KeyCode.S)) leftCommand = "DOWN";
         else if (Input.GetKey(KeyCode.A)) leftCommand = "LEFT";
         else if (Input.GetKey(KeyCode.D)) leftCommand = "RIGHT";
         else leftCommand = "NONE";
 
-        // 오른손 매핑 (방향키)
         if (Input.GetKey(KeyCode.UpArrow)) rightCommand = "FORWARD";
         else if (Input.GetKey(KeyCode.DownArrow)) rightCommand = "BACKWARD";
         else if (Input.GetKey(KeyCode.LeftArrow)) rightCommand = "ROTATE_LEFT";
         else if (Input.GetKey(KeyCode.RightArrow)) rightCommand = "ROTATE_RIGHT";
         else rightCommand = "NONE";
 
-        // 양손 긴급 정지 (Space 키)
         if (Input.GetKey(KeyCode.Space))
         {
             leftCommand = "STOP";
@@ -212,6 +207,7 @@ public class DroneController : MonoBehaviour
         SceneManager.LoadScene("Start");
     }
 
+    // 파이썬 프로세스 및 소켓 안전 완전 종료
     private void StopPythonProcess()
     {
         CancelInvoke(nameof(ConnectToServer));
@@ -219,14 +215,41 @@ public class DroneController : MonoBehaviour
         if (reader != null) { reader.Close(); reader = null; }
         if (client != null) { client.Close(); client = null; }
 
-        if (pythonProcess != null && !pythonProcess.HasExited)
+        if (pythonProcess != null)
         {
-            try { pythonProcess.Kill(); pythonProcess.Dispose(); } catch { }
-            pythonProcess = null;
+            try
+            {
+                if (!pythonProcess.HasExited)
+                {
+                    pythonProcess.Kill(); // 프로세스 강제 종료 (카메라 해제)
+                    pythonProcess.WaitForExit(1000); // 프로세스 정리 대기
+                }
+                pythonProcess.Dispose();
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("파이썬 프로세스 종료 처리 중 예외: " + e.Message);
+            }
+            finally
+            {
+                pythonProcess = null;
+                Debug.Log("파이썬 프로세스 및 웹캠 정상 종료 완료");
+            }
         }
     }
 
-    void OnApplicationQuit()
+    // 유니티 플레이 정지, 씬 변경, 오브젝트 파괴 시 자동 호출되는 안전 보장 이벤트 함수들
+    private void OnDisable()
+    {
+        StopPythonProcess();
+    }
+
+    private void OnDestroy()
+    {
+        StopPythonProcess();
+    }
+
+    private void OnApplicationQuit()
     {
         StopPythonProcess();
     }
