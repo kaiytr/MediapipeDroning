@@ -4,14 +4,16 @@ using System.IO;
 using System.Net.Sockets;
 using System.Text;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Debug = UnityEngine.Debug;
 
 public class DroneController : MonoBehaviour
 {
+    [Header("Control Settings")]
+    public ControlMode currentMode;
+
     [Header("Python Server Settings")]
-    [Tooltip("프로젝트 루트의 venv 기준 상대 경로")]
     public string pythonPath = @"venv\Scripts\python.exe";
-    [Tooltip("drone_server.py 파일 이름")]
     public string scriptPath = "drone_server.py";
 
     [Header("Drone Movement Settings")]
@@ -27,7 +29,8 @@ public class DroneController : MonoBehaviour
 
     void Start()
     {
-        StartPythonServer();
+        // GameManager에서 설정된 모드를 가져옴
+        currentMode = GameManager.SelectedMode;
 
         Rigidbody rb = GetComponent<Rigidbody>();
         if (rb != null)
@@ -35,7 +38,12 @@ public class DroneController : MonoBehaviour
             rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
         }
 
-        Invoke(nameof(ConnectToServer), 1.5f);
+        // 손 제스처 모드일 경우에만 파이썬 서버 자동 실행
+        if (currentMode == ControlMode.HandGesture)
+        {
+            StartPythonServer();
+            Invoke(nameof(ConnectToServer), 1.5f);
+        }
     }
 
     void StartPythonServer()
@@ -45,6 +53,18 @@ public class DroneController : MonoBehaviour
             string projectRoot = Path.Combine(Application.dataPath, "..");
             string fullPythonPath = Path.Combine(projectRoot, pythonPath);
             string fullScriptPath = Path.Combine(projectRoot, scriptPath);
+
+            if (!File.Exists(fullScriptPath))
+            {
+                fullScriptPath = Path.Combine(Application.streamingAssetsPath, scriptPath);
+            }
+
+            if (!File.Exists(fullPythonPath))
+            {
+                Debug.LogWarning("파이썬 실행 환경을 찾지 못해 키보드 모드로 자동 전환됩니다.");
+                currentMode = ControlMode.Keyboard;
+                return;
+            }
 
             ProcessStartInfo startInfo = new ProcessStartInfo
             {
@@ -61,11 +81,14 @@ public class DroneController : MonoBehaviour
         catch (Exception e)
         {
             Debug.LogError("파이썬 서버 실행 실패: " + e.Message);
+            currentMode = ControlMode.Keyboard;
         }
     }
 
     void ConnectToServer()
     {
+        if (currentMode != ControlMode.HandGesture) return;
+
         try
         {
             client = new TcpClient("127.0.0.1", 5001);
@@ -81,6 +104,48 @@ public class DroneController : MonoBehaviour
     }
 
     void Update()
+    {
+        if (currentMode == ControlMode.Keyboard)
+        {
+            ProcessKeyboardInput();
+        }
+        else if (currentMode == ControlMode.HandGesture)
+        {
+            ProcessSocketInput();
+        }
+
+        // ESC 키 입력 시 Start 씬(메인 메뉴)으로 돌아가기
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            ReturnToStartScene();
+        }
+    }
+
+    private void ProcessKeyboardInput()
+    {
+        // 왼손 매핑 (WASD)
+        if (Input.GetKey(KeyCode.W)) leftCommand = "UP";
+        else if (Input.GetKey(KeyCode.S)) leftCommand = "DOWN";
+        else if (Input.GetKey(KeyCode.A)) leftCommand = "LEFT";
+        else if (Input.GetKey(KeyCode.D)) leftCommand = "RIGHT";
+        else leftCommand = "NONE";
+
+        // 오른손 매핑 (방향키)
+        if (Input.GetKey(KeyCode.UpArrow)) rightCommand = "FORWARD";
+        else if (Input.GetKey(KeyCode.DownArrow)) rightCommand = "BACKWARD";
+        else if (Input.GetKey(KeyCode.LeftArrow)) rightCommand = "ROTATE_LEFT";
+        else if (Input.GetKey(KeyCode.RightArrow)) rightCommand = "ROTATE_RIGHT";
+        else rightCommand = "NONE";
+
+        // 양손 긴급 정지 (Space 키)
+        if (Input.GetKey(KeyCode.Space))
+        {
+            leftCommand = "STOP";
+            rightCommand = "STOP";
+        }
+    }
+
+    private void ProcessSocketInput()
     {
         if (client != null && client.Connected && client.GetStream().DataAvailable)
         {
@@ -141,16 +206,28 @@ public class DroneController : MonoBehaviour
         rb.linearVelocity = moveDir;
     }
 
-    void OnApplicationQuit()
+    public void ReturnToStartScene()
     {
-        if (reader != null) reader.Close();
-        if (client != null) client.Close();
+        StopPythonProcess();
+        SceneManager.LoadScene("Start");
+    }
+
+    private void StopPythonProcess()
+    {
+        CancelInvoke(nameof(ConnectToServer));
+
+        if (reader != null) { reader.Close(); reader = null; }
+        if (client != null) { client.Close(); client = null; }
 
         if (pythonProcess != null && !pythonProcess.HasExited)
         {
-            pythonProcess.Kill();
-            pythonProcess.Dispose();
-            Debug.Log("파이썬 서버 프로세스 종료 완료");
+            try { pythonProcess.Kill(); pythonProcess.Dispose(); } catch { }
+            pythonProcess = null;
         }
+    }
+
+    void OnApplicationQuit()
+    {
+        StopPythonProcess();
     }
 }
