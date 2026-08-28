@@ -4,15 +4,24 @@ import mediapipe as np_mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 import numpy as np
+import os
+import sys
+
+def get_resource_path(relative_path):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath("."), relative_path)
 
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server_socket.bind(('127.0.0.1', 5001))
 server_socket.listen(1)
 print("유니티 연결을 기다리는 중...")
 conn, addr = server_socket.accept()
 print(f"유니티 연결됨: {addr}")
 
-base_options = python.BaseOptions(model_asset_path='hand_landmarker.task')
+model_path = get_resource_path('hand_landmarker.task')
+base_options = python.BaseOptions(model_asset_path=model_path)
 options = vision.HandLandmarkerOptions(
     base_options=base_options,
     running_mode=vision.RunningMode.IMAGE,
@@ -101,7 +110,6 @@ try:
                     right_is_fist = is_fist
                     right_cmd = process_right_hand(landmarks)
 
-        # 양손이 모두 화면에 감지되었고, 양쪽 다 주먹을 쥐고 있는 경우 STOP 처리
         if left_is_fist and right_is_fist:
             left_cmd = "STOP"
             right_cmd = "STOP"

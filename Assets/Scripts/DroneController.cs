@@ -13,8 +13,8 @@ public class DroneController : MonoBehaviour
     public ControlMode currentMode;
 
     [Header("Python Server Settings")]
-    public string pythonPath = @"venv\Scripts\python.exe";
-    public string scriptPath = "drone_server.py";
+    [Tooltip("PyInstaller로 생성한 단일 파이썬 실행 파일 이름")]
+    public string serverExecutableName = "drone_server.exe";
 
     [Header("Drone Movement Settings")]
     public float moveSpeed = 5f;
@@ -40,7 +40,8 @@ public class DroneController : MonoBehaviour
         if (currentMode == ControlMode.HandGesture)
         {
             StartPythonServer();
-            Invoke(nameof(ConnectToServer), 1.5f);
+            // 웹캠 및 MediaPipe 초기화 시간을 고려하여 3초 후 첫 접속 시도
+            Invoke(nameof(ConnectToServer), 3.0f);
         }
     }
 
@@ -48,34 +49,37 @@ public class DroneController : MonoBehaviour
     {
         try
         {
-            string projectRoot = Path.Combine(Application.dataPath, "..");
-            string fullPythonPath = Path.Combine(projectRoot, pythonPath);
-            string fullScriptPath = Path.Combine(projectRoot, scriptPath);
+            string rootPath = Application.isEditor 
+                ? Path.GetFullPath(Path.Combine(Application.dataPath, "..")) 
+                : AppDomain.CurrentDomain.BaseDirectory;
 
-            if (!File.Exists(fullScriptPath))
+            string fullExePath = Path.Combine(rootPath, "dist", serverExecutableName);
+            string workingDir = Path.Combine(rootPath, "dist");
+
+            if (!File.Exists(fullExePath))
             {
-                fullScriptPath = Path.Combine(Application.streamingAssetsPath, scriptPath);
+                fullExePath = Path.Combine(rootPath, serverExecutableName);
+                workingDir = rootPath;
             }
 
-            if (!File.Exists(fullPythonPath))
+            if (!File.Exists(fullExePath))
             {
-                Debug.LogWarning("파이썬 실행 환경을 찾지 못해 키보드 모드로 자동 전환됩니다.");
+                Debug.LogError("파이썬 서버 실행 파일을 찾을 수 없습니다: " + fullExePath);
                 currentMode = ControlMode.Keyboard;
                 return;
             }
 
             ProcessStartInfo startInfo = new ProcessStartInfo
             {
-                FileName = fullPythonPath,
-                Arguments = $"\"{fullScriptPath}\"",
-                WorkingDirectory = projectRoot,
+                FileName = fullExePath,
+                WorkingDirectory = workingDir,
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 WindowStyle = ProcessWindowStyle.Hidden
             };
 
             pythonProcess = Process.Start(startInfo);
-            Debug.Log("파이썬 백그라운드 서버 자동 실행 시작");
+            Debug.Log("파이썬 서버(EXE) 백그라운드 자동 실행 성공: " + fullExePath);
         }
         catch (Exception e)
         {
@@ -87,18 +91,30 @@ public class DroneController : MonoBehaviour
     void ConnectToServer()
     {
         if (currentMode != ControlMode.HandGesture) return;
+        if (client != null && client.Connected) return;
 
         try
         {
-            client = new TcpClient("127.0.0.1", 5001);
+            client = new TcpClient();
+            // 타임아웃 1초 설정 후 접속 시도
+            var result = client.BeginConnect("127.0.0.1", 5001, null, null);
+            bool success = result.AsyncWaitHandle.WaitOne(TimeSpan.FromSeconds(1));
+
+            if (!success)
+            {
+                throw new SocketException();
+            }
+
+            client.EndConnect(result);
             NetworkStream stream = client.GetStream();
             reader = new StreamReader(stream, Encoding.UTF8);
             Debug.Log("파이썬 서버 연결 성공!");
         }
-        catch (Exception e)
+        catch (Exception)
         {
-            Debug.LogWarning("서버 연결 재시도 중...: " + e.Message);
-            Invoke(nameof(ConnectToServer), 1.0f);
+            Debug.LogWarning("서버 연결 대기 중... 재시도합니다.");
+            if (client != null) { client.Close(); client = null; }
+            Invoke(nameof(ConnectToServer), 1.5f);
         }
     }
 
@@ -207,7 +223,6 @@ public class DroneController : MonoBehaviour
         SceneManager.LoadScene("Start");
     }
 
-    // 파이썬 프로세스 및 소켓 안전 완전 종료
     private void StopPythonProcess()
     {
         CancelInvoke(nameof(ConnectToServer));
@@ -221,36 +236,23 @@ public class DroneController : MonoBehaviour
             {
                 if (!pythonProcess.HasExited)
                 {
-                    pythonProcess.Kill(); // 프로세스 강제 종료 (카메라 해제)
-                    pythonProcess.WaitForExit(1000); // 프로세스 정리 대기
+                    pythonProcess.Kill();
+                    pythonProcess.WaitForExit(1000);
                 }
                 pythonProcess.Dispose();
             }
             catch (Exception e)
             {
-                Debug.LogWarning("파이썬 프로세스 종료 처리 중 예외: " + e.Message);
+                Debug.LogWarning("파이썬 프로세스 종료 중 예외: " + e.Message);
             }
             finally
             {
                 pythonProcess = null;
-                Debug.Log("파이썬 프로세스 및 웹캠 정상 종료 완료");
             }
         }
     }
 
-    // 유니티 플레이 정지, 씬 변경, 오브젝트 파괴 시 자동 호출되는 안전 보장 이벤트 함수들
-    private void OnDisable()
-    {
-        StopPythonProcess();
-    }
-
-    private void OnDestroy()
-    {
-        StopPythonProcess();
-    }
-
-    private void OnApplicationQuit()
-    {
-        StopPythonProcess();
-    }
+    private void OnDisable() => StopPythonProcess();
+    private void OnDestroy() => StopPythonProcess();
+    private void OnApplicationQuit() => StopPythonProcess();
 }
