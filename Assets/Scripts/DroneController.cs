@@ -27,12 +27,19 @@ public class DroneController : MonoBehaviour
     public float moveSpeed = 5f;
     public float rotateSpeed = 150f;
 
+    [Header("Tilt Settings (드론 기울기 효과)")]
+    public float maxTiltAngle = 15f;    // 최대 기울어지는 각도
+    public float tiltSpeed = 5f;       // 기울어지는 반응 속도
+
     private Process pythonProcess;
     private TcpClient client;
     private StreamReader reader;
 
     private string leftCommand = "NONE";
     private string rightCommand = "NONE";
+
+    // Yaw 회전각을 누적하기 위한 변수
+    private float currentYaw = 0f;
 
     void Start()
     {
@@ -44,6 +51,8 @@ public class DroneController : MonoBehaviour
         {
             rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
         }
+
+        currentYaw = transform.eulerAngles.y;
 
         if (currentMode == ControlMode.HandGesture)
         {
@@ -76,7 +85,6 @@ public class DroneController : MonoBehaviour
             startInfo.Arguments = $"\"{scriptPath}\"";
             startInfo.WorkingDirectory = rootPath;
             
-            // 터미널 창(검은 창) 숨기기 세팅
             startInfo.UseShellExecute = false;
             startInfo.CreateNoWindow = true;
             startInfo.WindowStyle = ProcessWindowStyle.Hidden;
@@ -220,15 +228,17 @@ public class DroneController : MonoBehaviour
             return;
         }
 
+        // 1. Yaw 회전 처리 (제자리 좌우 회전)
         if (rightCommand == "ROTATE_LEFT")
         {
-            transform.Rotate(0f, -rotateSpeed * Time.fixedDeltaTime, 0f, Space.World);
+            currentYaw -= rotateSpeed * Time.fixedDeltaTime;
         }
         else if (rightCommand == "ROTATE_RIGHT")
         {
-            transform.Rotate(0f, rotateSpeed * Time.fixedDeltaTime, 0f, Space.World);
+            currentYaw += rotateSpeed * Time.fixedDeltaTime;
         }
 
+        // 2. 이동 방향 벡터 계산
         Vector3 moveDir = Vector3.zero;
 
         if (leftCommand == "UP") moveDir += Vector3.up * moveSpeed;
@@ -241,6 +251,25 @@ public class DroneController : MonoBehaviour
         else if (rightCommand == "BACKWARD") moveDir -= transform.forward * moveSpeed;
 
         rb.linearVelocity = moveDir;
+
+        // 3. 이동 방향에 따른 동적 틸팅(기울기) 계산 (Yaw 회전 제외, 전후/좌우 이동 시에만 기울어짐)
+        // 전진/후진 명령에 따른 Pitch (앞뒤로 기울기)
+        float targetPitch = 0f;
+        if (rightCommand == "FORWARD") targetPitch = maxTiltAngle;
+        else if (rightCommand == "BACKWARD") targetPitch = -maxTiltAngle;
+
+        // 좌/우 이동 명령에 따른 Roll (좌우로 기울기)
+        float targetRoll = 0f;
+        if (leftCommand == "LEFT") targetRoll = maxTiltAngle;
+        else if (leftCommand == "RIGHT") targetRoll = -maxTiltAngle;
+
+        // 상하 이동 시 미세한 피치 효과 부여 (선택사항)
+        if (leftCommand == "UP") targetPitch = maxTiltAngle * 0.5f;
+        else if (leftCommand == "DOWN") targetPitch = -maxTiltAngle * 0.5f;
+
+        // 부드럽게 회전 적용 (Quaternion.Slerp 활용)
+        Quaternion targetRotation = Quaternion.Euler(targetPitch, currentYaw, targetRoll);
+        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, tiltSpeed * Time.fixedDeltaTime);
     }
 
     public void ReturnToStartScene()
