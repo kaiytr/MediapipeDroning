@@ -3490,6 +3490,11 @@ MonoBehaviour:
   m_ShadowLayerMask: 1
   m_RenderingLayers: 1
   m_ShadowRenderingLayers: 1
+--- !u!1 &495730735 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 153240, guid: 48d2973b7a25b451ea97a6eaf756f8cb, type: 3}
+  m_PrefabInstance: {fileID: 1996249263}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &498827384 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 400014, guid: ac93356612ce24c718977a61ed7246de, type: 3}
@@ -5945,6 +5950,7 @@ GameObject:
   - component: {fileID: 802203969}
   - component: {fileID: 802203973}
   - component: {fileID: 802203972}
+  - component: {fileID: 802203974}
   m_Layer: 0
   m_Name: Capsule
   m_TagString: Untagged
@@ -6068,6 +6074,21 @@ CharacterController:
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &802203974
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 802203967}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 48d4138d718e7cd4aa6a930eb812a639, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ObjectInteractor
+  playerCamera: {fileID: 288530119}
+  interactDistance: 11.6
+  targetTag: Interactable
 --- !u!1 &822705954 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 100006, guid: 8a0669be60aaf43bc84e95a66b4f5248, type: 3}
@@ -6158,7 +6179,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!108 &834386067
 Light:
   m_ObjectHideFlags: 0
@@ -9341,6 +9362,27 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 453240, guid: 48d2973b7a25b451ea97a6eaf756f8cb, type: 3}
   m_PrefabInstance: {fileID: 1996249263}
   m_PrefabAsset: {fileID: 0}
+--- !u!65 &1282135633
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 495730735}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 2.9633384, y: 3.4733315, z: 6.4203787}
+  m_Center: {x: -1.6126628, y: 1.2366655, z: 2.7101886}
 --- !u!1 &1283978651 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 100006, guid: c046375e7bf1c42cdac74810855eae68, type: 3}
@@ -14482,8 +14524,16 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 138042, guid: 48d2973b7a25b451ea97a6eaf756f8cb, type: 3}
+      propertyPath: m_TagString
+      value: Interactable
+      objectReference: {fileID: 0}
+    - target: {fileID: 138042, guid: 48d2973b7a25b451ea97a6eaf756f8cb, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 153240, guid: 48d2973b7a25b451ea97a6eaf756f8cb, type: 3}
+      propertyPath: m_TagString
+      value: Interactable
       objectReference: {fileID: 0}
     - target: {fileID: 153240, guid: 48d2973b7a25b451ea97a6eaf756f8cb, type: 3}
       propertyPath: m_StaticEditorFlags
@@ -14613,6 +14663,9 @@ PrefabInstance:
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 153240, guid: 48d2973b7a25b451ea97a6eaf756f8cb, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1282135633}
     - targetCorrespondingSourceObject: {fileID: 118370, guid: 48d2973b7a25b451ea97a6eaf756f8cb, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1843939039}
