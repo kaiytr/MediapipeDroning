@@ -16,6 +16,8 @@ public class FirstPersonInteraction : MonoBehaviour
 
     void Update()
     {
+        if (playerCamera == null) return;
+
         // 카메라 정중앙 시선 방향으로 레이를 쏨
         Ray ray = new Ray(playerCamera.position, playerCamera.forward);
         RaycastHit hit;
@@ -35,7 +37,36 @@ public class FirstPersonInteraction : MonoBehaviour
 
     void Interact(GameObject target)
     {
-        Debug.Log("★ 상호작용 성공: " + target.name);
+        // 1. 아이템 습득 처리 (ItemObject가 붙어있는 경우)
+        ItemObject itemObj = target.GetComponent<ItemObject>();
+        if (itemObj != null && itemObj.itemData != null)
+        {
+            if (RescueManager.Instance != null)
+            {
+                RescueManager.Instance.AddItem(itemObj.itemData);
+            }
+
+            Destroy(target);
+            return;
+        }
+
+        // 2. 요구조자 상호작용 처리 (Scene B일 경우)
+        if (RescueManager.Instance != null && RescueManager.Instance.isRescueActive)
+        {
+            // B씬 요구조자와 상호작용 시 구조 시도
+            if (target.name.Contains("Victim") || target.GetComponent<Collider>() != null)
+            {
+                bool isSuccess = RescueManager.Instance.TryCompleteRescue();
+                if (isSuccess)
+                {
+                    Debug.Log("구조 성공!");
+                }
+                else
+                {
+                    Debug.Log("필요한 아이템이 부족합니다!");
+                }
+            }
+        }
     }
 
     // 에디터 씬 뷰에서 카메라 레이 가이드라인 표시
