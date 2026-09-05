@@ -12,9 +12,6 @@ EditorBuildSettings:
     path: Assets/Scenes/Game.unity
     guid: 99c9720ab356a0642a771bea13969a05
   - enabled: 1
-    path: Assets/Scenes/RescueCenter.unity
-    guid: 2419119625062e445b3d8340ce7b71ea
-  - enabled: 1
     path: Assets/Scenes/Map2.unity
     guid: ec388d925d1c84347b15dcefc4f8ea0f
   m_configObjects:
