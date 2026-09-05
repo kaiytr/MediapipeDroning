@@ -10644,7 +10644,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 415b16e46dc7d6446915e1bcb2391279, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RescueManager
-  sceneAName: ada
+  sceneAName: RescueCenter
   sceneBName: Map2
   currentRescueData: {fileID: 11400000, guid: 4ed06cdc9863c4242b5d0626f0439424, type: 2}
   playerInventory: []

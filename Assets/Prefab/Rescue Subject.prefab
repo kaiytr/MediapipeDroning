@@ -145,7 +145,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RescueSubjectSpawn
   flarePrefab: {fileID: 389821699222927281, guid: 856f1f18fb8861d4499813c38a5963ae, type: 3}
   flareSpawnPoint: {fileID: 4566488136287405195}
-  interval: 5
+  checkInterval: 0.5
+  nextSceneName: RescueCenter
+  fadeDuration: 1
 --- !u!136 &69025254761031767
 CapsuleCollider:
   m_ObjectHideFlags: 0
