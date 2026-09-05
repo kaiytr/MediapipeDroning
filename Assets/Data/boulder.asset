@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: boulder
   m_EditorClassIdentifier: Assembly-CSharp::RescueData
   structureName: boulder
-  goldenTime: 1000
+  goldenTime: 100
   rescuerPosition: {x: 3616, y: 859, z: -1130}
   requiredItems: []
   locationHints:
