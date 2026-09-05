@@ -8,6 +8,10 @@ public class VictimInteraction : MonoBehaviour
     [SerializeField] private Transform flareSpawnPoint;  // 발사 위치
     [SerializeField] private float checkInterval = 0.5f; // 타임 체크 주기 (초)
 
+    [Header("씬 이동 설정")]
+    [SerializeField] private string nextSceneName = "ClearScene"; // 성공 시 이동할 씬 이름
+    [SerializeField] private float fadeDuration = 1.0f;          // 페이드 연출 시간 (초)
+
     private bool isRescued = false;
     private bool hasFiredFlare = false;                  // 단 1회 발사 확인용 플래그
     private Coroutine flareCoroutine;
@@ -40,14 +44,13 @@ public class VictimInteraction : MonoBehaviour
                 }
             }
 
-            // 조건 도달 여부를 주기적으로 확인 (0.5초 추천)
             yield return new WaitForSeconds(checkInterval);
         }
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Player"))
+        if (other.CompareTag("Player") && !isRescued)
         {
             bool success = RescueManager.Instance.TryCompleteRescue();
 
@@ -59,6 +62,16 @@ public class VictimInteraction : MonoBehaviour
                 if (flareCoroutine != null)
                 {
                     StopCoroutine(flareCoroutine);
+                }
+
+                // Fade 효과 적용 후 이동할 씬으로 전환
+                if (FadeManager.Instance != null)
+                {
+                    FadeManager.Instance.LoadSceneWithFade(nextSceneName, fadeDuration);
+                }
+                else
+                {
+                    Debug.LogWarning("FadeManager가 씬에 존재하지 않습니다.");
                 }
             }
             else

@@ -162,11 +162,6 @@ public class DroneController : MonoBehaviour
         {
             ProcessSocketInput();
         }
-
-        if (Input.GetKeyDown(KeyCode.Escape))
-        {
-            ReturnToStartScene();
-        }
     }
 
     private void ProcessKeyboardInput()

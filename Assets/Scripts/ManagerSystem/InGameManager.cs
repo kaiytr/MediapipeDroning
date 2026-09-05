@@ -60,11 +60,25 @@ public class InGameManager : MonoBehaviour
 
     public void RestartGame()
     {
-        SceneManager.LoadScene("Game");
+        if (FadeManager.Instance != null)
+        {
+            FadeManager.Instance.LoadSceneWithFade("Game");
+        }
+        else
+        {
+            SceneManager.LoadScene("Game");
+        }
     }
 
     public void GoToStartMenu()
     {
-        SceneManager.LoadScene("Start");
+        if (FadeManager.Instance != null)
+        {
+            FadeManager.Instance.LoadSceneWithFade("Start");
+        }
+        else
+        {
+            SceneManager.LoadScene("Start");
+        }
     }
 }

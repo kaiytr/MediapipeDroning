@@ -8,7 +8,7 @@ public class StartGameManager : MonoBehaviour
     {
         PlayerPrefs.SetString("ControlType", "Hand");
         PlayerPrefs.Save();
-        UnityEngine.Debug.Log("[StartGameManager] 컨트롤 모드: Hand 설정 완료");
+        Debug.Log("[StartGameManager] 컨트롤 모드: Hand 설정 완료");
         
         LoadGameScene();
     }
@@ -18,7 +18,7 @@ public class StartGameManager : MonoBehaviour
     {
         PlayerPrefs.SetString("ControlType", "Keyboard");
         PlayerPrefs.Save();
-        UnityEngine.Debug.Log("[StartGameManager] 컨트롤 모드: Keyboard 설정 완료");
+        Debug.Log("[StartGameManager] 컨트롤 모드: Keyboard 설정 완료");
 
         LoadGameScene();
     }
@@ -40,6 +40,14 @@ public class StartGameManager : MonoBehaviour
 
     private void LoadGameScene()
     {
-        SceneManager.LoadScene("Game");
+        // FadeManager가 존재하면 페이드 효과와 함께 이동, 없을 경우 바로 이동
+        if (FadeManager.Instance != null)
+        {
+            FadeManager.Instance.LoadSceneWithFade("RescueCenter");
+        }
+        else
+        {
+            SceneManager.LoadScene("RescueCenter");
+        }
     }
 }

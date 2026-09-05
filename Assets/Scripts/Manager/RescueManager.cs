@@ -78,7 +78,10 @@ public class RescueManager : MonoBehaviour
     public void StartRescueRequest(RescueData data)
     {
         currentRescueData = data;
-        remainingGoldenTime = data.goldenTime;
+        if (data != null)
+        {
+            remainingGoldenTime = data.goldenTime;
+        }
         playerInventory.Clear();
         currentHintIndex = 0;
         hintTimer = 0f;
@@ -160,6 +163,16 @@ public class RescueManager : MonoBehaviour
     {
         isRescueActive = false;
         OnRescueFailed?.Invoke();
+
+        // 골든 타임 종료 시 sceneAName(A 씬)으로 전환
+        if (FadeManager.Instance != null)
+        {
+            FadeManager.Instance.LoadSceneWithFade(sceneAName);
+        }
+        else
+        {
+            SceneManager.LoadScene(sceneAName);
+        }
     }
 
     private void SucceedRescue()
