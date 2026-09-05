@@ -143,6 +143,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b465e30bd35ef7043af00126e46b54c6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RescueSubjectSpawn
+  flarePrefab: {fileID: 389821699222927281, guid: 856f1f18fb8861d4499813c38a5963ae, type: 3}
+  flareSpawnPoint: {fileID: 4566488136287405195}
+  interval: 5
 --- !u!136 &69025254761031767
 CapsuleCollider:
   m_ObjectHideFlags: 0
