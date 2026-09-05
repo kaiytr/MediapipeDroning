@@ -5,59 +5,41 @@ using TMPro;
 public class GoldenTimeUI : MonoBehaviour
 {
     public Image gaugeFillImage;        // Fill 속성이 설정된 게이지 Image
-    public TextMeshProUGUI timerText;   // 남은 시간을 보여줄 텍스트 (선택 사항)
-
-    [Header("Test Settings")]
-    public float testGoldenTime = 10f;  // 테스트용 제한시간
+    public TextMeshProUGUI timerText;   // 남은 시간을 보여줄 텍스트
 
     private float maxTime;
-    private float currentTime;
-    private bool isTimerRunning = false;
 
-    void Start()
+    private void OnEnable()
     {
-        StartTestTimer();
-    }
-
-    public void StartTestTimer()
-    {
-        maxTime = testGoldenTime;
-        currentTime = maxTime;
-        isTimerRunning = true;
-        UpdateGaugeUI();
-    }
-
-    public void SetupRescueTimer(RescueData data)
-    {
-        if (data == null) return;
-
-        maxTime = data.goldenTime;
-        currentTime = maxTime;
-        isTimerRunning = true;
-
-        UpdateGaugeUI();
-    }
-
-    void Update()
-    {
-        if (!isTimerRunning) return;
-
-        if (currentTime > 0)
+        // RescueManager의 타이머 갱신 이벤트 구독
+        if (RescueManager.Instance != null)
         {
-            currentTime -= Time.deltaTime;
-            UpdateGaugeUI();
-        }
-        else
-        {
-            currentTime = 0;
-            isTimerRunning = false;
-            UpdateGaugeUI();
+            RescueManager.Instance.OnTimerUpdated += UpdateUI;
+            
+            // 초기 시간 세팅
+            if (RescueManager.Instance.currentRescueData != null)
+            {
+                maxTime = RescueManager.Instance.currentRescueData.goldenTime;
+                UpdateUI(RescueManager.Instance.remainingGoldenTime);
+            }
         }
     }
 
-    private void UpdateGaugeUI()
+    private void OnDisable()
     {
-        float fillRatio = Mathf.Clamp01(currentTime / maxTime);
+        // 이벤트 구독 해제 (메모리 누수 방지)
+        if (RescueManager.Instance != null)
+        {
+            RescueManager.Instance.OnTimerUpdated -= UpdateUI;
+        }
+    }
+
+    private void UpdateUI(float remainingTime)
+    {
+        if (maxTime <= 0f) return;
+
+        // remainingGoldenTime 비율 계산
+        float fillRatio = Mathf.Clamp01(remainingTime / maxTime);
 
         if (gaugeFillImage != null)
         {
@@ -66,8 +48,8 @@ public class GoldenTimeUI : MonoBehaviour
 
         if (timerText != null)
         {
-            int minutes = Mathf.FloorToInt(currentTime / 60F);
-            int seconds = Mathf.FloorToInt(currentTime % 60F);
+            int minutes = Mathf.FloorToInt(remainingTime / 60f);
+            int seconds = Mathf.FloorToInt(remainingTime % 60f);
             timerText.text = string.Format("{0:00}:{1:00}", minutes, seconds);
         }
     }
