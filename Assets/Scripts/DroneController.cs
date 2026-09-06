@@ -63,11 +63,12 @@ public class DroneController : MonoBehaviour
 
     void StartPythonServer()
     {
-        Process[] existingExe = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(serverExecutableName));
-        if (existingExe.Length > 0)
+        // 1. 기존 중복 프로세스 강제 종료
+        string procName = Path.GetFileNameWithoutExtension(serverExecutableName);
+        Process[] existingExe = Process.GetProcessesByName(procName);
+        foreach (var p in existingExe)
         {
-            Debug.Log("파이썬 서버가 이미 백그라운드에서 실행 중입니다.");
-            return;
+            try { p.Kill(); } catch { }
         }
 
         try
@@ -90,9 +91,19 @@ public class DroneController : MonoBehaviour
             startInfo.WindowStyle = ProcessWindowStyle.Hidden;
 #else
             string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            string fullExePath = Path.Combine(baseDir, "dist", serverExecutableName);
-            string workingDir = Path.Combine(baseDir, "dist");
+            
+            // 1순위 경로 탐색: dist/drone_server/drone_server.exe (--onedir 기본 형태)
+            string fullExePath = Path.Combine(baseDir, "dist", procName, serverExecutableName);
+            string workingDir = Path.Combine(baseDir, "dist", procName);
 
+            // 2순위 fallback: dist/drone_server.exe
+            if (!File.Exists(fullExePath))
+            {
+                fullExePath = Path.Combine(baseDir, "dist", serverExecutableName);
+                workingDir = Path.Combine(baseDir, "dist");
+            }
+
+            // 3순위 fallback: 루트 경로 (SAVE.D.exe와 같은 폴더)
             if (!File.Exists(fullExePath))
             {
                 fullExePath = Path.Combine(baseDir, serverExecutableName);
@@ -101,24 +112,26 @@ public class DroneController : MonoBehaviour
 
             if (!File.Exists(fullExePath))
             {
-                Debug.LogError("파이썬 서버 실행 파일을 찾을 수 없습니다: " + fullExePath);
+                Debug.LogError("[DroneController] 파이썬 서버 실행 파일을 찾을 수 없습니다: " + fullExePath);
                 currentMode = ControlMode.Keyboard;
                 return;
             }
 
             startInfo.FileName = fullExePath;
             startInfo.WorkingDirectory = workingDir;
+            
+            // CMD 창을 완전히 가리고 백그라운드에서 실행되도록 설정
             startInfo.UseShellExecute = false;
             startInfo.CreateNoWindow = true;
             startInfo.WindowStyle = ProcessWindowStyle.Hidden;
 #endif
 
             pythonProcess = Process.Start(startInfo);
-            Debug.Log("파이썬 서버 자동 실행 성공 (터미널 숨김)");
+            Debug.Log("[DroneController] 파이썬 서버 자동 실행 성공 (백그라운드 모드): " + startInfo.FileName);
         }
         catch (Exception e)
         {
-            Debug.LogError("파이썬 서버 실행 실패: " + e.Message);
+            Debug.LogError("[DroneController] 파이썬 서버 실행 실패: " + e.Message);
             currentMode = ControlMode.Keyboard;
         }
     }
@@ -247,22 +260,18 @@ public class DroneController : MonoBehaviour
 
         rb.linearVelocity = moveDir;
 
-        // 3. 이동 방향에 따른 동적 틸팅(기울기) 계산 (Yaw 회전 제외, 전후/좌우 이동 시에만 기울어짐)
-        // 전진/후진 명령에 따른 Pitch (앞뒤로 기울기)
+        // 3. 이동 방향에 따른 동적 틸팅(기울기) 계산
         float targetPitch = 0f;
         if (rightCommand == "FORWARD") targetPitch = maxTiltAngle;
         else if (rightCommand == "BACKWARD") targetPitch = -maxTiltAngle;
 
-        // 좌/우 이동 명령에 따른 Roll (좌우로 기울기)
         float targetRoll = 0f;
         if (leftCommand == "LEFT") targetRoll = maxTiltAngle;
         else if (leftCommand == "RIGHT") targetRoll = -maxTiltAngle;
 
-        // 상하 이동 시 미세한 피치 효과 부여 (선택사항)
         if (leftCommand == "UP") targetPitch = maxTiltAngle * 0.5f;
         else if (leftCommand == "DOWN") targetPitch = -maxTiltAngle * 0.5f;
 
-        // 부드럽게 회전 적용 (Quaternion.Slerp 활용)
         Quaternion targetRotation = Quaternion.Euler(targetPitch, currentYaw, targetRoll);
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, tiltSpeed * Time.fixedDeltaTime);
     }
